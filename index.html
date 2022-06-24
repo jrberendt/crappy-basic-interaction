@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>Modular Digital Universe</title>
+		<style>
+			body { margin: 0; }
+		</style>
+	</head>
+	<body>
+		<script src="js/three.js"></script>
+		<script src="js/PointerLockControls.js"></script>
+		<script>
+			let moveForward = false;
+			let moveBackward = false;
+			let moveLeft = false;
+			let moveRight = false;
+			let canJump = true;
+			let speed = 30;
+			let prevTime = performance.now();
+			let landY = 0;
+			let onLand = true;
+			let firstAnimation = false;
+			let locked = false;
+			const velocity = new THREE.Vector3();
+			const direction = new THREE.Vector3();
+			let raycasterDown = new THREE.Raycaster(new THREE.Vector3(), new THREE.Vector3( 0, -1, 0 ), 0, 100)
+      			let raycasterRight = new THREE.Raycaster(new THREE.Vector3(), new THREE.Vector3( 1, 0, 0 ), 0, 100)
+      			let raycasterLeft = new THREE.Raycaster(new THREE.Vector3(), new THREE.Vector3( -1, 0, 0 ), 0, 100)
+      			let raycasterFor = new THREE.Raycaster(new THREE.Vector3(), new THREE.Vector3( 0, 0, -1 ), 0, 100)
+      			let raycasterBack = new THREE.Raycaster(new THREE.Vector3(), new THREE.Vector3( 0, 0, 1 ), 0, 100)
+
+			const scene = new THREE.Scene();
+      			scene.background = new THREE.Color( 0x13bfb0 );
+      			const light = new THREE.HemisphereLight( 0xeeeeff, 0x777788, 0.75 );
+			light.position.set( 0.5, 1, 0.75 );
+			scene.add( light );
+			const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 1000 );
+
+     			const controls = new THREE.PointerLockControls( camera, document.body );
+      			
+			document.addEventListener("click", function(){
+				if(!locked){controls.lock();locked=true}
+			})
+			controls.addEventListener("unlock", function(){locked=false})
+
+			camera.position.y = 4;
+			scene.add(controls.getObject());	
+      const objects = [];
+
+      const floorgeometry = new THREE.BoxGeometry(20, 50, 20)
+      const floormaterial = new THREE.MeshBasicMaterial( {color: 0x00ff00} );
+      const floor = new THREE.Mesh( floorgeometry, floormaterial );
+        floor.position.y -= 25;
+        floor.geometry.computeBoundingBox();
+        objects.push(floor);
+        scene.add(floor);
+
+			const renderer = new THREE.WebGLRenderer();
+			renderer.setSize( window.innerWidth, window.innerHeight );
+			document.body.appendChild( renderer.domElement );
+			
+			
+
+      
+      window.addEventListener('resize', onWindowResize)
+
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+			}
+      window.addEventListener( 'resize', onWindowResize );
+				
+								const onKeyDown = function ( event ) {
+					switch ( event.code ) {
+						case 'ArrowUp':
+						case 'KeyW':
+							moveForward = true;
+							break;
+
+						case 'ArrowLeft':
+						case 'KeyA':
+							moveLeft = true;
+							break;
+
+						case 'ArrowDown':
+						case 'KeyS':
+							moveBackward = true;
+							break;
+
+						case 'ArrowRight':
+						case 'KeyD':
+							moveRight = true;
+							break;
+
+						case 'Space':
+						  if(onLand){
+						    velocity.y += 20;
+						    onLand = false;
+						  }
+              break;
+						//case 'ShiftLeft':
+						//  	speed = 0.05
+						//  	break;
+
+					}
+
+				};
+
+				const onKeyUp = function ( event ) {
+					switch ( event.code ) {
+
+						case 'ArrowUp':
+						case 'KeyW':
+							moveForward = false;
+							break;
+
+						case 'ArrowLeft':
+						case 'KeyA':
+							moveLeft = false;
+							break;
+
+						case 'ArrowDown':
+						case 'KeyS':
+							moveBackward = false;
+							break;
+
+						case 'ArrowRight':
+						case 'KeyD':
+							moveRight = false;
+							break;
+						//case 'ShiftLeft':
+            //  	speed = 7.0
+						//  	break;
+					}
+
+				};
+				document.addEventListener( 'keydown', onKeyDown );
+				document.addEventListener( 'keyup', onKeyUp );
+			
+	function animate() {
+	requestAnimationFrame( animate );
+        
+        const time = performance.now();
+	if(controls.isLocked){
+	raycasterDown.ray.origin.copy(controls.getObject().position);
+        raycasterDown.ray.origin.y -= 4;
+        raycasterRight.ray.origin.copy(controls.getObject().position);
+        raycasterLeft.ray.origin.copy(controls.getObject().position);
+        raycasterFor.ray.origin.copy(controls.getObject().position);
+        raycasterBack.ray.origin.copy(controls.getObject().position);
+        
+        const intersectionsDown = raycasterDown.intersectObjects(objects, true);
+        const intersectionsRight = raycasterRight.intersectObjects(objects, true);
+        const intersectionsLeft = raycasterLeft.intersectObjects(objects, true);
+        const intersectionsFor = raycasterFor.intersectObjects(objects, true);
+        const intersectionsBack = raycasterBack.intersectObjects(objects, true);
+        
+
+        
+        const delta = ( time - prevTime ) / 1000;
+				velocity.x -= velocity.x * speed * delta;
+				velocity.z -= velocity.z * speed * delta;
+        
+        
+        
+        if(intersectionsRight[0]){if(intersectionsRight[0].distance <= 0.375){moveRight = false;velocity.x = 0;}}
+        if(intersectionsLeft[0]){if(intersectionsLeft[0].distance <= 0.375){moveLeft = false;velocity.x = 0;}}
+        if(intersectionsFor[0]){if(intersectionsFor[0].distance <= 0.375){moveForward = false;velocity.z = 0;}}
+        if(intersectionsBack[0]){if(intersectionsBack[0].distance <= 0.375){moveBackward = false;velocity.z = 0;}}
+        
+        
+        if(!intersectionsDown[0] && firstAnimation){
+          onLand = false;
+        }
+        if(intersectionsDown[0]){
+          if(camera.position.y > intersectionsDown[0].point.y){
+            onLand = false;
+          }
+        }
+        if(!onLand){
+          velocity.y -= 9.8 * 7.5 * delta;
+        }
+        
+        
+        
+        direction.z = Number( moveForward ) - Number( moveBackward );
+				direction.x = Number( moveRight ) - Number( moveLeft );
+				direction.normalize(); // this ensures consistent movements in all directions
+
+				if ( moveForward || moveBackward ) velocity.z -= direction.z * 400.0 * delta;
+				if ( moveLeft || moveRight ) velocity.x -= direction.x * 400.0 * delta;
+
+        //camera.position.x -= velocity.x * delta;
+        camera.position.y += velocity.y * delta;
+        //camera.position.z += velocity.z * delta;
+        controls.moveForward(- velocity.z*delta);
+	controls.moveRight(- velocity.x * delta);
+
+	if(firstAnimation && intersectionsDown[0]){
+          if(camera.position.y - 4 <= intersectionsDown[0].point.y){
+            velocity.y = 0;
+            onLand = true;
+            camera.position.y = intersectionsDown[0].point.y + 4;
+          }
+        }
+			}
+        prevTime = time;
+
+				renderer.render( scene, camera );
+				firstAnimation = true
+		
+        	};
+			animate();
+			
+			
+		</script>
+	</body>
+</html>
